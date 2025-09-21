@@ -1,14 +1,13 @@
 "use client";
 
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { toast } from "sonner";
-import useStore from "@/hooks/zustand-hook";
 import { NormalizedReview } from "@/lib/reviewService";
 
 interface ReviewsTableProps {
     reviews: NormalizedReview[];
     sortConfig: { key: keyof NormalizedReview, direction: 'asc' | 'desc' } | null;
     setSortConfig: (config: { key: keyof NormalizedReview, direction: 'asc' | 'desc' } | null) => void;
+    onTogglePublic: (reviewId: string) => void;
 }
 
 const columns: { key: keyof NormalizedReview, label: string, sortable: boolean }[] = [
@@ -20,24 +19,7 @@ const columns: { key: keyof NormalizedReview, label: string, sortable: boolean }
     { key: 'isPublic', label: 'Public', sortable: true },
 ];
 
-export default function ReviewsTable({ reviews, sortConfig, setSortConfig }: ReviewsTableProps) {
-    const togglePublic = useStore((state) => state.togglePublic);
-
-    const handleTogglePublic = (reviewId: string) => {
-        const review = reviews.find(r => r.id === reviewId);
-        if (!review) return;
-
-        const isMakingPublic = !review.isPublic;
-
-        togglePublic(reviewId);
-
-        if (isMakingPublic) {
-            toast.success("Review has been made public.");
-        } else {
-            toast.info("Review has been hidden from public view.");
-        }
-    };
-
+export default function ReviewsTable({ reviews, sortConfig, setSortConfig, onTogglePublic }: ReviewsTableProps) {
     const requestSort = (key: keyof NormalizedReview) => {
         let direction: 'asc' | 'desc' = 'asc';
         if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -79,7 +61,7 @@ export default function ReviewsTable({ reviews, sortConfig, setSortConfig }: Rev
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{review.channel}</td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(review.date).toISOString().split('T')[0]}</td>
                                 <td className="px-6 py-4 whitespace-nowrap">
-                                    <button type="button" onClick={() => handleTogglePublic(review.id)} className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#FFFDF6] focus:ring-offset-2 ${review.isPublic ? 'bg-green-600' : 'bg-gray-200'}`}>
+                                    <button type="button" onClick={() => onTogglePublic(review.id)} className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#FFFDF6] focus:ring-offset-2 ${review.isPublic ? 'bg-green-600' : 'bg-gray-200'}`}>
                                         <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${review.isPublic ? 'translate-x-5' : 'translate-x-0'}`} />
                                     </button>
                                 </td>

@@ -19,10 +19,10 @@ export default function LoginForm() {
         setError('');
 
         if (email === landlordCredentials.email && password === landlordCredentials.password) {
-            login(email, 'landlord');
+            login('landlord');
             router.push('/dashboard');
         } else if (email === customerCredentials.email && password === customerCredentials.password) {
-            login(email, 'customer');
+            login('guest');
             router.push('/property/prop_001'); 
         } else {
             setError('Invalid email or password.');

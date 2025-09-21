@@ -16,9 +16,7 @@ const propertyIdMap: { [key: string]: string } = {
  * - Sets a default `isPublic` status for manager approval.
  */
 function normalizeHostawayData(apiResponse: typeof hostawayApiResponse): NormalizedReview[] {
-  const guestReviews = apiResponse.result.filter(
-    (review) => review.type === 'guest-to-host' && review.status === 'published'
-  );
+  const guestReviews = apiResponse.result.filter((review) => review.type === 'guest-to-host');
 
   return guestReviews.map((review) => {
     const totalRating = review.reviewCategory.reduce((sum, cat) => sum + cat.rating, 0);
@@ -35,7 +33,7 @@ function normalizeHostawayData(apiResponse: typeof hostawayApiResponse): Normali
       author: review.guestName,
       date: new Date(review.submittedAt).toISOString(),
       channel: 'Hostaway', // All reviews from this API are from Hostaway
-      isPublic: false, // Default to not public; manager will approve in the dashboard
+      isPublic: review.status === 'published',
     };
   });
 }

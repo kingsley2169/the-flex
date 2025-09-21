@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { mockProperties } from '@/lib/mockProperties';
 import DashboardFilters from './dashboard-filters';
 import ReviewsTable from './reviews-table';
+import { toast } from "sonner";
 import KpiCard from './kpi-card';
 import useStore from '@/hooks/zustand-hook';
 import { Star, MessageSquare, TrendingUp } from 'lucide-react';
@@ -14,7 +15,7 @@ type ReviewWithProperty = NormalizedReview;
 
 export default function DashboardClient() {
     const router = useRouter();
-    const { role, isLoggedIn, reviews: allReviews, fetchReviews } = useStore();
+    const { role, isLoggedIn } = useStore();
     const [hasMounted, setHasMounted] = useState(false);
 
     useEffect(() => {
@@ -22,13 +23,15 @@ export default function DashboardClient() {
     }, []);
 
     useEffect(() => {
-        // Wait until the component has mounted and Zustand has rehydrated.
+        // This effect handles the redirection side-effect.
+        // It runs after the component mounts and whenever the auth state changes.
         if (hasMounted && (!isLoggedIn || role !== 'landlord')) {
             router.push('/');
         }
-    }, [isLoggedIn, role, router, hasMounted]);
+    }, [hasMounted, isLoggedIn, role, router]);
 
     const [properties] = useState(mockProperties);
+    const [allReviews, setAllReviews] = useState<NormalizedReview[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     // Filter and Sort states
@@ -41,12 +44,39 @@ export default function DashboardClient() {
     useEffect(() => {
         const loadReviews = async () => {
             setIsLoading(true);
-            await fetchReviews();
-            setIsLoading(false);
+            try {
+                const res = await fetch('/api/reviews/hostaway');
+                if (!res.ok) throw new Error('Failed to fetch reviews');
+                const { data }: { data: NormalizedReview[] } = await res.json();
+                setAllReviews(data);
+            } catch (error) {
+                console.error("Failed to fetch reviews:", error);
+            } finally {
+                setIsLoading(false);
+            }
         };
 
         loadReviews();
-    }, [fetchReviews]);
+    }, []);
+
+    const handleTogglePublic = (reviewId: string) => {
+        let isMakingPublic = false;
+        setAllReviews(prevReviews =>
+            prevReviews.map(review => {
+                if (review.id === reviewId) {
+                    isMakingPublic = !review.isPublic;
+                    return { ...review, isPublic: isMakingPublic };
+                }
+                return review;
+            })
+        );
+
+        if (isMakingPublic) {
+            toast.success("Review has been made public.");
+        } else {
+            toast.info("Review has been hidden from public view.");
+        }
+    };
 
     const channels = useMemo(() => {
         const uniqueChannels = [...new Set(allReviews.map((r) => r.channel))];
@@ -115,13 +145,18 @@ export default function DashboardClient() {
         return (total / filteredReviews.length).toFixed(1);
     }, [filteredReviews]);
 
-    // Before the store is rehydrated from localStorage, show a generic loading state.
-    // This prevents a flash of the login page or an unauthorized message.
-    // This guard ensures we only render the dashboard for a mounted, authorized landlord.
-    if (!hasMounted || !isLoggedIn || role !== 'landlord') {
-        return <div className="text-center p-12">Checking authorization...</div>;
+    // Render Guards
+    // 1. Wait for the component to mount on the client. This prevents race conditions with auth state.
+    if (!hasMounted) {
+        return <div className="text-center p-12">Loading Dashboard...</div>;
     }
 
+    // 2. If not authorized, show a message. The useEffect above will handle the actual redirect.
+    if (!isLoggedIn || role !== 'landlord') {
+        return <div className="text-center p-12">Redirecting to login...</div>;
+    }
+
+    // 3. While reviews are being fetched, show a loading state.
     if (isLoading) {
         return <div className="text-center p-12">Loading reviews...</div>;
     }
@@ -147,7 +182,7 @@ export default function DashboardClient() {
                 setDateRange={setDateRange}
             />
 
-            <ReviewsTable reviews={sortedReviews} sortConfig={sortConfig} setSortConfig={setSortConfig} />
+            <ReviewsTable reviews={sortedReviews} sortConfig={sortConfig} setSortConfig={setSortConfig} onTogglePublic={handleTogglePublic} />
         </div>
     );
 }

@@ -131,7 +131,8 @@ export default function PropertyClient({ property }: PropertyClientProps) {
                     <AboutProperty property={property} />
                     <Amenities property={property} />
                     <StayPolicies property={property} />
-                    <PropertyLocation property={property} />
+                    {/* Since there is no access to google api services, this is ignored for now */}
+                    {/* <PropertyLocation property={property} /> */}
                     <div id="guest-reviews" className="scroll-mt-24">
                         <GuestReviews property={property} reviews={publicReviews} />
                     </div>
