@@ -19,7 +19,7 @@ To run the project locally, please follow these steps:
 
 1.  **Clone the repository:**
     ```bash
-    git clone 'https://github.com/kingsley2169/the-flex'
+    git clone 'https://github.com/kingsley2169/the-flex.git'
     cd the-flex
     ```
 
