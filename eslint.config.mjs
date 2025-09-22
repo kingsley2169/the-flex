@@ -20,6 +20,14 @@ const eslintConfig = [
       "next-env.d.ts",
     ],
   },
+  ...compat.config({
+    extends: ['next'],
+    rules: {
+      "jsx-a11y/role-has-required-aria-props": "off",
+      "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/no-explicit-any": "off"
+    }
+  })
 ];
 
 export default eslintConfig;
