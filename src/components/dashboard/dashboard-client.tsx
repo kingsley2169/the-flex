@@ -125,7 +125,7 @@ export default function DashboardClient() {
     }, [allReviews, selectedProperty, selectedRating, selectedChannel, dateRange]);
 
     const sortedReviews = useMemo(() => {
-        let sortableItems = [...filteredReviews];
+        const sortableItems = [...filteredReviews];
         if (sortConfig !== null && sortConfig !== undefined) {
             sortableItems.sort((a, b) => {
                 const key = sortConfig.key;

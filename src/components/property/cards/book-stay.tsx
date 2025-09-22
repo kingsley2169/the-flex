@@ -27,6 +27,8 @@ const BookStay = () => {
                             <button
                                 type="button"
                                 role="combobox"
+                                aria-controls="radix-:rj:"
+                                aria-expanded="false"
                                 className="flex w-full items-center justify-between rounded-md border-input px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1 h-[42px] bg-[#F1F3EE] border-0 shadow-sm hover:bg-[#FFFDF6] transition-colors text-[#333333] rounded-l-none rounded-r-md"
                             >
                                 <div className="flex items-center gap-2">
