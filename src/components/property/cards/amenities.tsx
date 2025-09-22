@@ -14,8 +14,8 @@ const amenityIcons: { [key: string]: React.ReactNode } = {
     "Smart TV": <Tv size={20} className="text-[#284E4C]" />,
     "Elevator": <Building size={20} className="text-[#284E4C]" />,
     "Heating": <AirVent size={20} className="text-[#284E4C]" />,
-    "Balcony": <Building size={20} className="text-[#284E4C]" />, // Using Building as a placeholder
-    "Coffee Machine": <Check size={20} className="text-[#284E4C]" />, // Using Check as a placeholder
+    "Balcony": <Building size={20} className="text-[#284E4C]" />, 
+    "Coffee Machine": <Check size={20} className="text-[#284E4C]" />, 
 };
 
 const getAmenityIcon = (amenity: string) => {

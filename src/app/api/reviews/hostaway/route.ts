@@ -2,26 +2,17 @@ import { NextResponse } from 'next/server';
 import { hostawayApiResponse } from '@/lib/hostaway-mock';
 import type { NormalizedReview } from '@/lib/reviewService';
 
-// This helper maps the verbose listing names from the mock API to our internal property IDs.
 const propertyIdMap: { [key: string]: string } = {
   "2B N1 A - 29 Shoreditch Heights": "prop_001",
   "DTL - 15 Market Street": "prop_002",
 };
 
-/**
- * Parses and normalizes the raw review data from the Hostaway mock API.
- * - Filters for guest-to-host reviews only.
- * - Calculates a 5-star rating from category scores.
- * - Maps listing names to internal property IDs.
- * - Sets a default `isPublic` status for manager approval.
- */
 function normalizeHostawayData(apiResponse: typeof hostawayApiResponse): NormalizedReview[] {
   const guestReviews = apiResponse.result.filter((review) => review.type === 'guest-to-host');
 
   return guestReviews.map((review) => {
     const totalRating = review.reviewCategory.reduce((sum, cat) => sum + cat.rating, 0);
     const averageRatingOutOf10 = review.reviewCategory.length > 0 ? totalRating / review.reviewCategory.length : 0;
-    // Convert a 1-10 scale to a 1-5 scale for our dashboard
     const ratingOutOf5 = averageRatingOutOf10 / 2;
 
     return {
@@ -32,7 +23,7 @@ function normalizeHostawayData(apiResponse: typeof hostawayApiResponse): Normali
       content: review.publicReview,
       author: review.guestName,
       date: new Date(review.submittedAt).toISOString(),
-      channel: 'Hostaway', // All reviews from this API are from Hostaway
+      channel: 'Hostaway', 
       isPublic: review.status === 'published',
     };
   });
@@ -40,8 +31,22 @@ function normalizeHostawayData(apiResponse: typeof hostawayApiResponse): Normali
 
 export async function GET() {
   try {
+    // const HOSTAWAY_ACCOUNT_ID = `${process.env.HOSTAWAY_ACCOUNT_ID}`;
+    // const HOSTAWAY_API_KEY = `${process.env.HOSTAWAY_API_KEY}`;
+
+    //  Mock call to Hostaway api
+    // const res = await fetch("https://sandbox.hostaway.com/v1/reviews", {
+    //   headers: {
+    //     "Authorization": `Bearer ${HOSTAWAY_API_KEY}`,
+    //     "Account-Id": HOSTAWAY_ACCOUNT_ID
+    //   },
+    //   cache: "no-store"
+    // });
+
+    // const hostawayApiResponse = await res.json();
+
     const normalizedReviews = normalizeHostawayData(hostawayApiResponse);
-    // Simulate a network delay to make loading states visible
+    // Simulated network delay
     await new Promise(resolve => setTimeout(resolve, 500));
     return NextResponse.json({ status: 'success', data: normalizedReviews });
   } catch (error) {

@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo } from 'react';
+import useStore from '@/hooks/zustand-hook';
 import type { Property } from '@/types/property';
 import { Star } from 'lucide-react';
 import { hostawayApiResponse } from '@/lib/hostaway-mock';
+import { googleReviewsApiResponse, googleReviewPropertyMap } from '@/lib/google-reviews-mock';
 import PropertyImages from './property-images';
 import NameDescription from './name-description';
 import BookStay from './cards/book-stay';
@@ -18,55 +20,75 @@ interface PropertyClientProps {
 }
 
 export default function PropertyClient({ property }: PropertyClientProps) {
+    const reviewStatus = useStore((state) => state.reviewStatus);
+
     const publicReviews = useMemo(() => {
         const listingNameMap: { [key: string]: string } = {
             "Shoreditch Heights Apartment": "2B N1 A - 29 Shoreditch Heights",
             "Downtown Loft": "DTL - 15 Market Street",
         };
-
         const targetListingName = listingNameMap[property.name];
-        if (!targetListingName) {
-            return [];
+        
+        let hostawayReviews: any[] = [];
+        if (targetListingName) {
+            const allHostawayForListing = hostawayApiResponse.result.filter(
+                review => review.listingName === targetListingName
+            );
+            const hostReplies = allHostawayForListing.filter(
+                review => review.type === 'host-to-guest' && review.status === 'published'
+            );
+            const hostRepliesMap = new Map(
+                hostReplies.map(reply => [
+                    reply.guestName,
+                    { content: reply.publicReview, date: reply.submittedAt }
+                ])
+            );
+            hostawayReviews = allHostawayForListing
+                .filter(review => review.type === 'guest-to-host')
+                .map(review => {
+                    const totalRating = review.reviewCategory.reduce((acc, cat) => acc + cat.rating, 0);
+                    const averageRating = review.reviewCategory.length > 0 ? (totalRating / review.reviewCategory.length) / 2 : 0;
+                    return {
+                        id: review.id.toString(),
+                        author: review.guestName,
+                        rating: averageRating,
+                        date: review.submittedAt,
+                        content: review.publicReview,
+                        categoryRatings: review.reviewCategory.map(cat => ({ ...cat, rating: cat.rating / 2 })),
+                        hostReply: hostRepliesMap.get(review.guestName),
+                        isPublicDefault: review.status === 'published',
+                    };
+                });
         }
 
-        const allReviewsForListing = hostawayApiResponse.result.filter(
-            review => review.listingName === targetListingName
-        );
+        const googleReviews = googleReviewsApiResponse.result.reviews
+            .filter(review => {
+                const reviewPropertyId = googleReviewPropertyMap[review.author_name as keyof typeof googleReviewPropertyMap];
+                return reviewPropertyId === property.id;
+            })
+            .map(review => ({
+                id: `google_${review.time}`,
+                author: review.author_name,
+                rating: review.rating,
+                date: new Date(review.time * 1000).toISOString(),
+                content: review.text,
+                categoryRatings: [],
+                hostReply: undefined,
+                isPublicDefault: true, 
+            }));
 
-        const hostReplies = allReviewsForListing.filter(
-            review => review.type === 'host-to-guest' && review.status === 'published'
-        );
+        const allReviews = [...hostawayReviews, ...googleReviews];
 
-        // Create a map of host replies keyed by guestName for efficient lookup.
-        const hostRepliesMap = new Map(
-            hostReplies.map(reply => [
-                reply.guestName,
-                { content: reply.publicReview, date: reply.submittedAt }
-            ])
-        );
-
-        return allReviewsForListing
-            .filter(review =>
-                review.status === 'published' &&
-                review.type === 'guest-to-host'
-            )
-            .map(review => {
-                const totalRating = review.reviewCategory.reduce((acc, cat) => acc + cat.rating, 0);
-                const averageRating = review.reviewCategory.length > 0 ? (totalRating / review.reviewCategory.length) / 2 : 0;
-                const hostReply = hostRepliesMap.get(review.guestName);
-
-                return {
-                    id: review.id.toString(),
-                    author: review.guestName,
-                    rating: averageRating,
-                    date: review.submittedAt,
-                    content: review.publicReview,
-                    categoryRatings: review.reviewCategory.map(cat => ({ ...cat, rating: cat.rating / 2 })),
-                    hostReply: hostReply,
-                };
+        return allReviews
+            .filter(review => {
+                const persistedStatus = reviewStatus[review.id];
+                if (persistedStatus !== undefined) {
+                    return persistedStatus;
+                }
+                return review.isPublicDefault;
             })
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [property.name]);
+    }, [property.id, property.name, reviewStatus]);
 
     const overallRatingData = useMemo(() => {
         const listingNameMap: { [key: string]: string } = {
@@ -75,33 +97,38 @@ export default function PropertyClient({ property }: PropertyClientProps) {
         };
 
         const targetListingName = listingNameMap[property.name];
-        if (!targetListingName) {
-            return { average: 0, count: 0 };
-        }
 
-        const allGuestReviews = hostawayApiResponse.result.filter(
+        const hostawayGuestReviews = targetListingName ? hostawayApiResponse.result.filter(
             review => review.listingName === targetListingName && review.type === 'guest-to-host'
-        );
+        ) : [];
 
-        if (allGuestReviews.length === 0) {
-            return { average: 0, count: 0 };
-        }
-
-        const totalOfAverageRatings = allGuestReviews.reduce((sum, review) => {
+        const hostawayTotalOfAveragesOutOf5 = hostawayGuestReviews.reduce((sum, review) => {
             if (!review.reviewCategory || review.reviewCategory.length === 0) return sum;
             const reviewTotal = review.reviewCategory.reduce((acc, cat) => acc + cat.rating, 0);
-            const reviewAverage = reviewTotal / review.reviewCategory.length;
-            return sum + reviewAverage;
+            const reviewAverageOutOf10 = reviewTotal / review.reviewCategory.length;
+            return sum + (reviewAverageOutOf10 / 2);
         }, 0);
 
-        const overallAverageOutOf10 = totalOfAverageRatings / allGuestReviews.length;
-        const overallAverageOutOf5 = overallAverageOutOf10 / 2;
+        const googleReviewsForProperty = googleReviewsApiResponse.result.reviews.filter(review => {
+            const reviewPropertyId = googleReviewPropertyMap[review.author_name as keyof typeof googleReviewPropertyMap];
+            return reviewPropertyId === property.id;
+        });
+
+        const googleTotalRating = googleReviewsForProperty.reduce((sum, review) => sum + review.rating, 0);
+
+        const totalReviewsCount = hostawayGuestReviews.length + googleReviewsForProperty.length;
+        if (totalReviewsCount === 0) {
+            return { average: 0, count: 0 };
+        }
+
+        const combinedTotalRating = hostawayTotalOfAveragesOutOf5 + googleTotalRating;
+        const overallAverage = combinedTotalRating / totalReviewsCount;
 
         return {
-            average: overallAverageOutOf5,
-            count: allGuestReviews.length,
+            average: overallAverage,
+            count: totalReviewsCount,
         };
-    }, [property.name]);
+    }, [property.id, property.name]);
  
     return (
         <div 

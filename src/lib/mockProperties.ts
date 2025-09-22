@@ -4,7 +4,7 @@ export interface Review {
     id: string;
     author: string;
     rating: number;
-    channel: 'Airbnb' | 'Booking.com' | 'Direct' | 'Hostaway';
+    channel: 'Hostaway' | 'Google';
     date: string;
     content: string;
     isPublic: boolean;

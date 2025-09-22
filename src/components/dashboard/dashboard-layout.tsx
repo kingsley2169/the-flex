@@ -11,7 +11,6 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
     const [isSidebarOpen, setSidebarOpen] = useState(true);
 
-    // Set initial sidebar state based on screen size, but only on mount
     useEffect(() => {
         if (window.innerWidth < 768) {
             setSidebarOpen(false);

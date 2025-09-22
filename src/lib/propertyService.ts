@@ -1,17 +1,11 @@
-import { mockProperties } from "./mockProperties";
+import { mockProperties, Review } from "./mockProperties";
 import { Property } from "@/types/property";
 import { hostawayApiResponse } from "./hostaway-mock";
+import { googleReviewsApiResponse, googleReviewPropertyMap } from "./google-reviews-mock";
 
-/**
- * Processes raw review data from the Hostaway mock.
- * This function filters for relevant reviews, maps them to properties,
- * and calculates an overall rating.
- * NOTE: This assumes that each property in `mockProperties` has a `name`
- * field that corresponds to the `listingName` in the review data.
- */
+
 async function getHostawayReviews() {
     const listingNameToIdMap = new Map<string, string>();
-    // Assuming `p.name` exists on the property object and corresponds to `listingName`.
     mockProperties.forEach(p => {
         if ((p as any).name) {
             listingNameToIdMap.set((p as any).name, p.id);
@@ -19,27 +13,47 @@ async function getHostawayReviews() {
     });
 
     const allReviews = hostawayApiResponse.result
-        .filter(review => review.status === 'published' && review.type === 'guest-to-host')
+        .filter(review => review.type === 'guest-to-host')
         .map(review => {
             const propertyId = listingNameToIdMap.get(review.listingName);
 
-            // Calculate an overall rating out of 5 stars from categories like cleanliness and communication.
             const relevantCategories = review.reviewCategory.filter(c => c.category === 'cleanliness' || c.category === 'communication');
-            const rating = relevantCategories.length > 0
+            const ratingOutOf10 = relevantCategories.length > 0
                 ? (relevantCategories.reduce((acc, cat) => acc + cat.rating, 0) / relevantCategories.length) / 2
                 : 0;
+            const rating = ratingOutOf10 / 2;
 
             return {
-                id: review.id,
-                publicReview: review.publicReview,
-                guestName: review.guestName,
-                submittedAt: review.submittedAt,
+                id: review.id.toString(),
+                content: review.publicReview,
+                author: review.guestName,
+                date: review.submittedAt,
                 rating: parseFloat(rating.toFixed(1)),
                 propertyId: propertyId,
+                channel: 'Hostaway' as const,
+                isPublic: review.status === 'published',
             };
         });
 
-    return allReviews.filter(review => review.propertyId); // Only return reviews that were successfully mapped to a property.
+    return allReviews.filter(review => review.propertyId);
+}
+
+async function getGoogleReviews() {
+    const allReviews = googleReviewsApiResponse.result.reviews.map(review => {
+        const propertyId = googleReviewPropertyMap[review.author_name as keyof typeof googleReviewPropertyMap];
+        return {
+            id: `google_${review.time}`,
+            content: review.text,
+            author: review.author_name,
+            date: new Date(review.time * 1000).toISOString(),
+            rating: review.rating,
+            propertyId: propertyId,
+            channel: 'Google' as const,
+            isPublic: true,
+        };
+    });
+
+    return allReviews.filter(review => review.propertyId);
 }
 
 export async function getPropertyById(id: string): Promise<Property | null> {
@@ -49,9 +63,13 @@ export async function getPropertyById(id: string): Promise<Property | null> {
         return null;
     }
 
-    // Fetch all hostaway reviews and filter for the current property
-    const hostawayReviews = await getHostawayReviews(); 
-    const propertyReviews = hostawayReviews.filter(review => review.propertyId === id);
+    const hostawayReviews = await getHostawayReviews();
+    const googleReviews = await getGoogleReviews();
+    const allReviews = [...hostawayReviews, ...googleReviews];
+
+    const propertyReviews: Review[] = allReviews
+        .filter(review => review.propertyId === id)
+        .map(({ propertyId, ...reviewData }) => reviewData); 
 
     return { ...property, reviews: propertyReviews };
 }

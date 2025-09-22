@@ -23,7 +23,6 @@ const PropertyImages = ({ property }: PropertyImagesProps ) => {
 
     return (
         <div className="mb-8 md:mb-12">
-            {/* Mobile Carousel */}
             <div className="relative h-[400px] md:hidden">
                 {images.length > 0 && (
                     <Image
@@ -52,7 +51,6 @@ const PropertyImages = ({ property }: PropertyImagesProps ) => {
                 </button>
             </div>
 
-            {/* Desktop Grid */}
             <div className="relative hidden h-[600px] grid-cols-4 grid-rows-2 gap-4 md:grid">
                 <div className="col-span-2 row-span-2 relative cursor-pointer group">
                     {images[0] && <Image 

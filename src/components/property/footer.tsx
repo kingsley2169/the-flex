@@ -25,7 +25,6 @@ export const PropertyFooter = () => {
                             <SubscribeForm />
                         </div>
 
-                        {/* The flex description */}
                         <div className="lg:col-span-2">
                             <h3 
                                 className="text-lg md:text-xl font-bold mb-4 font-sans"
@@ -62,7 +61,6 @@ export const PropertyFooter = () => {
                             </div>
                         </div>
 
-                        {/* Quick Links */}
                         <div className="lg:col-span-2">
                             <h3
                                 className="text-lg md:text-xl font-bold mb-4 font-sans"
@@ -88,7 +86,6 @@ export const PropertyFooter = () => {
                             </ul>
                         </div>
 
-                        {/* Locations */}
                         <div className="lg:col-span-2">
                             <h3
                                 className="text-lg md:text-xl font-bold mb-4 font-sans"
@@ -112,7 +109,6 @@ export const PropertyFooter = () => {
                             </ul>
                         </div>
 
-                        {/* Contact Us */}
                         <div className="lg:col-span-2">
                             <h3 className="text-lg md:text-xl font-bold mb-4 font-sans">
                                 Contact Us

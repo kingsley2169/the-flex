@@ -15,7 +15,7 @@ type ReviewWithProperty = NormalizedReview;
 
 export default function DashboardClient() {
     const router = useRouter();
-    const { role, isLoggedIn } = useStore();
+    const { role, isLoggedIn, reviewStatus, setReviewStatus } = useStore();
     const [hasMounted, setHasMounted] = useState(false);
 
     useEffect(() => {
@@ -23,15 +23,14 @@ export default function DashboardClient() {
     }, []);
 
     useEffect(() => {
-        // This effect handles the redirection side-effect.
-        // It runs after the component mounts and whenever the auth state changes.
+        
         if (hasMounted && (!isLoggedIn || role !== 'landlord')) {
             router.push('/');
         }
     }, [hasMounted, isLoggedIn, role, router]);
 
     const [properties] = useState(mockProperties);
-    const [allReviews, setAllReviews] = useState<NormalizedReview[]>([]);
+    const [rawReviews, setRawReviews] = useState<NormalizedReview[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     // Filter and Sort states
@@ -45,12 +44,23 @@ export default function DashboardClient() {
         const loadReviews = async () => {
             setIsLoading(true);
             try {
-                const res = await fetch('/api/reviews/hostaway');
-                if (!res.ok) throw new Error('Failed to fetch reviews');
-                const { data }: { data: NormalizedReview[] } = await res.json();
-                setAllReviews(data);
+                const [hostawayRes, googleRes] = await Promise.all([
+                    fetch('/api/reviews/hostaway'),
+                    fetch('/api/reviews/google') 
+                ]);
+
+                if (!hostawayRes.ok || !googleRes.ok) {
+                    throw new Error('Failed to fetch reviews from one or more sources');
+                }
+
+                const hostawayJson = await hostawayRes.json();
+                const googleJson = await googleRes.json();
+
+                const combinedReviews = [...hostawayJson.data, ...googleJson.data];
+                setRawReviews(combinedReviews);
             } catch (error) {
                 console.error("Failed to fetch reviews:", error);
+                toast.error("Failed to fetch reviews. Please try again later.");
             } finally {
                 setIsLoading(false);
             }
@@ -59,17 +69,19 @@ export default function DashboardClient() {
         loadReviews();
     }, []);
 
+    const allReviews = useMemo(() => {
+        return rawReviews.map(review => ({
+            ...review,
+            isPublic: reviewStatus[review.id] !== undefined ? reviewStatus[review.id] : review.isPublic,
+        }));
+    }, [rawReviews, reviewStatus]);
+
     const handleTogglePublic = (reviewId: string) => {
-        let isMakingPublic = false;
-        setAllReviews(prevReviews =>
-            prevReviews.map(review => {
-                if (review.id === reviewId) {
-                    isMakingPublic = !review.isPublic;
-                    return { ...review, isPublic: isMakingPublic };
-                }
-                return review;
-            })
-        );
+        const currentReview = allReviews.find(r => r.id === reviewId);
+        if (!currentReview) return;
+
+        const isMakingPublic = !currentReview.isPublic;
+        setReviewStatus(reviewId, isMakingPublic);
 
         if (isMakingPublic) {
             toast.success("Review has been made public.");
@@ -86,22 +98,18 @@ export default function DashboardClient() {
     const filteredReviews = useMemo(() => {
         let reviews = [...allReviews];
         
-        // Property filter
         if (selectedProperty !== 'all') {
             reviews = reviews.filter(r => r.propertyId === selectedProperty);
         }
 
-        // Rating filter (e.g., 4 means 4 stars and up)
         if (selectedRating > 0) {
             reviews = reviews.filter(r => r.rating >= selectedRating);
         }
 
-        // Channel filter
         if (selectedChannel !== 'all') {
             reviews = reviews.filter(r => r.channel === selectedChannel);
         }
 
-        // Date range filter
         if (dateRange.start) {
             const startDate = new Date(dateRange.start);
             startDate.setHours(0, 0, 0, 0);
@@ -145,18 +153,14 @@ export default function DashboardClient() {
         return (total / filteredReviews.length).toFixed(1);
     }, [filteredReviews]);
 
-    // Render Guards
-    // 1. Wait for the component to mount on the client. This prevents race conditions with auth state.
     if (!hasMounted) {
         return <div className="text-center p-12">Loading Dashboard...</div>;
     }
 
-    // 2. If not authorized, show a message. The useEffect above will handle the actual redirect.
     if (!isLoggedIn || role !== 'landlord') {
         return <div className="text-center p-12">Redirecting to login...</div>;
     }
 
-    // 3. While reviews are being fetched, show a loading state.
     if (isLoading) {
         return <div className="text-center p-12">Loading reviews...</div>;
     }
@@ -182,7 +186,12 @@ export default function DashboardClient() {
                 setDateRange={setDateRange}
             />
 
-            <ReviewsTable reviews={sortedReviews} sortConfig={sortConfig} setSortConfig={setSortConfig} onTogglePublic={handleTogglePublic} />
+            <ReviewsTable 
+                reviews={sortedReviews} 
+                sortConfig={sortConfig} 
+                setSortConfig={setSortConfig} 
+                onTogglePublic={handleTogglePublic} 
+            />
         </div>
     );
 }
